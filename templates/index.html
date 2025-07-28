@@ -140,9 +140,10 @@
     align-self: stretch;       /* fill the row's height */
     justify-self: stretch;     /* full width */
     display: flex;
-    align-items: center;       /* vertical center */
+    align-items: end;       /* vertical center */
     justify-content: center;   /* horizontal center */
     width: 100%;
+    padding-bottom: 1em;
   }
 
   /* Case B: canvas is direct child (Energy) — center it in the flexible row */
@@ -252,7 +253,9 @@
           <input class="slider" id="hardnessSlider" type="range" min=0 max=100 value=1 onchange="setBrushHardness(this.value/this.max)">
         </div>
       </div>
-      <canvas id="canvas" width=256 height=256></canvas>
+      <div class="panel-canvas">
+        <canvas id="canvas" width=256 height=256></canvas>
+      </div>
     </div>
 
     <div class="holder" id="ebmHolder">
