@@ -1,0 +1,1 @@
+emcc wasm/main.c -o static/main.js -s STANDALONE_WASM=0  -s EXPORTED_FUNCTIONS='["_render_pixels", "_Get_ENERGY_SIZE", "_get_energy_ptr", "_get_pixels_ptr", "_setup", "_sample_energy", "_get_ebm_pixels_ptr", "_render_ebm_pixels", "_train_ebm", "_init_ebm_samples",  "_sample_ebm"]'  -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]'  -s ENVIRONMENT="web" -sALLOW_MEMORY_GROWTH

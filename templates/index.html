@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Model Exploration</title>
+  <script src="static/main.js"></script>
+  <style>
+
+    :root{
+      --bg: #f4f1e9;            /* warm-beige background */
+      --panel: #fffdf7;         /* panel surface */
+      --frame: #cfc3b3;         /* retro frame line */
+      --ink: #1f1f1f;           /* main text */
+      --muted: #6b6b6b;         /* secondary text */
+      --accent: #0b6ea0;        /* cool retro blue */
+      --accent-ink: #ffffff;
+      --danger: #b23a48;        /* brick red */
+      --danger-ink: #ffffff;
+      --bevel-light: #fff7e6;   /* light inset */
+      --bevel-dark: #c6b8a6;    /* dark inset */
+      --gap: 14px;
+      --radius: 12px;
+    }
+
+/* ---------- Page layout (no overlap) ---------- */
+  body{
+    margin: 0;
+    padding: 24px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    /* Responsive grid that stacks cleanly */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: var(--gap);
+    align-content: start;   /* prevents items from piling on each other */
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  /* Stack to a single column on narrow screens */
+  @media (max-width: 760px){
+    body{
+      grid-template-columns: 1fr;
+      padding: 16px;
+    }
+  }
+
+  /* ---------- Holders (panels) ---------- */
+  .holder{
+    position: static; /* ensure normal flow */
+    background: var(--panel);
+    border: 1px solid var(--frame);
+    border-radius: var(--radius);
+    box-shadow:
+      inset 0 1px 0 var(--bevel-light),
+      inset 0 -1px 0 var(--bevel-dark),
+      0 1px 6px rgba(0,0,0,.06);
+    padding: 16px;
+
+    /* Grid: title, controls, flexible canvas area */
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    align-items: start;
+    justify-items: center;              /* center children horizontally */
+    gap: 12px;
+
+    /* Keep panels visually same height */
+    --panel-minh: 520px;                /* tune if needed */
+    min-height: var(--panel-minh);
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 520px){
+    .holder{ --panel-minh: 440px; }
+  }
+
+  /* ---------- Titles ---------- */
+  .holder > h1{
+    margin: 0 0 2px 0;
+    font-size: 18px;
+    letter-spacing: .02em;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* ---------- Controls (centered; wrap nicely) ---------- */
+  .controls{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;   /* centers each wrapped row */
+    gap: 10px;
+    width: 100%;
+
+    padding: 10px;
+    border: 1px solid var(--frame);
+    border-radius: 10px;
+    background:
+      repeating-linear-gradient( -45deg,
+        rgba(0,0,0,.03) 0, rgba(0,0,0,.03) 6px,
+        rgba(255,255,255,.35) 6px, rgba(255,255,255,.35) 12px);
+    box-shadow:
+      inset 0 1px 0 var(--bevel-light),
+      inset 0 -1px 0 var(--bevel-dark);
+    box-sizing: border-box;
+  }
+
+  .slider-holder{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 240px;     /* lets label+slider wrap as a unit */
+    justify-content: center;
+  }
+  .slider-label{ font-size: 12px; color: var(--muted); }
+  .slider{ max-width: 220px; }
+
+  /* ---------- Canvas centering ---------- */
+
+  /* Keep canvases at natural pixel size; center in their area */
+  canvas{
+    display: block;
+    /* no CSS width/height => JS coordinates stay correct */
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    border-radius: 8px;
+    background: #faf7f0;
+    border: 1px solid var(--frame);
+    box-shadow:
+      inset 0 1px 0 var(--bevel-light),
+      inset 0 -1px 0 var(--bevel-dark);
+    margin: 0; /* grid/flex will handle centering */
+  }
+
+  /* Case A: you used a wrapper (EBM) — fill leftover space and center child */
+  .panel-canvas{
+    grid-row: 3;               /* sits in the flexible row */
+    align-self: stretch;       /* fill the row's height */
+    justify-self: stretch;     /* full width */
+    display: flex;
+    align-items: center;       /* vertical center */
+    justify-content: center;   /* horizontal center */
+    width: 100%;
+  }
+
+  /* Case B: canvas is direct child (Energy) — center it in the flexible row */
+  .holder > canvas{
+    grid-row: 3;
+    place-self: center;        /* centers within its grid area */
+  }
+
+  /* ---------- Buttons (unchanged behavior, centered by .controls) ---------- */
+  button.start-button,
+  button.stop-button{
+    font: inherit;
+    line-height: 1;
+    padding: 9px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--frame);
+    cursor: pointer;
+    transition: transform .02s ease, box-shadow .12s ease, filter .12s ease;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.6),
+      0 2px 0 rgba(0,0,0,.06);
+    user-select: none;
+  }
+  button.start-button{
+    background: linear-gradient(#1182c7, #0b6ea0);
+    color: var(--accent-ink);
+    border-color: #0a5d87;
+  }
+  button.stop-button{
+    background: linear-gradient(#c9535d, #b23a48);
+    color: var(--danger-ink);
+    border-color: #9e2f3c;
+  }
+  button.start-button:hover{ filter: brightness(1.02); }
+  button.stop-button:hover { filter: brightness(1.03); }
+  button.start-button:active,
+  button.stop-button:active{
+    transform: translateY(1px);
+    box-shadow:
+      inset 0 2px 0 rgba(0,0,0,.08),
+      0 1px 0 rgba(0,0,0,.06);
+  }
+  button.start-button:focus-visible,
+  button.stop-button:focus-visible{
+    outline: 2px dashed #6a5acd;
+    outline-offset: 3px;
+  }
+
+  /* ---------- Sliders (same visuals; kept for completeness) ---------- */
+  input[type="range"]{
+    -webkit-appearance: none;
+    width: 220px;
+    height: 14px;
+    background: transparent;
+  }
+  input[type="range"]::-webkit-slider-runnable-track{
+    height: 6px;
+    background: linear-gradient(#e8e0d5, #e3dacd);
+    border: 1px solid var(--frame);
+    border-radius: 6px;
+    box-shadow: inset 0 1px 0 var(--bevel-light), inset 0 -1px 0 var(--bevel-dark);
+  }
+  input[type="range"]::-moz-range-track{
+    height: 6px;
+    background: linear-gradient(#e8e0d5, #e3dacd);
+    border: 1px solid var(--frame);
+    border-radius: 6px;
+    box-shadow: inset 0 1px 0 var(--bevel-light), inset 0 -1px 0 var(--bevel-dark);
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    margin-top: -6px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ffffff 0 35%, #d6d0c6 36% 100%);
+    border: 1px solid var(--frame);
+    box-shadow: 0 1px 0 rgba(0,0,0,.15);
+  }
+  input[type="range"]::-moz-range-thumb{
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ffffff 0 35%, #d6d0c6 36% 100%);
+    border: 1px solid var(--frame);
+    box-shadow: 0 1px 0 rgba(0,0,0,.15);
+  }
+  </style>
+</head>
+  <body>
+    <div class="holder" id="energyHolder">
+      <h1>Energy Landscape</h1>
+      <div class="controls" id="energyControls">
+        <button class="start-button" id="sampleEnergyBtn">Start sampling</button>
+        <button class="start-button" id="initEnergySamplesBtn">Init Samples</button>
+
+        <div class="slider-holder">
+          <label class="slider-label" for="brushSizeSlider">Brush Size</label>
+          <input class="slider" id="brushSizeSlider" type="range" min=1 max=100 value=1 onchange="setBrushSize((this.value/this.max) ** 2)">
+        </div>
+
+        <div class="slider-holder">
+          <label class="slider-label" for="brushLevelSlider">Brush Level</label>
+          <input class="slider" id="brushLevelSlider" type="range" min=1 max=100 value=1 onchange="setBrushLevel(this.value/this.max)">
+        </div>
+
+        <div class="slider-holder">
+          <label class="slider-label" for="hardnessSlider">Brush Softness</label>
+          <input class="slider" id="hardnessSlider" type="range" min=0 max=100 value=1 onchange="setBrushHardness(this.value/this.max)">
+        </div>
+      </div>
+      <canvas id="canvas" width=256 height=256></canvas>
+    </div>
+
+    <div class="holder" id="ebmHolder">
+      <h1>Energy Based Model</h1>
+      <div class="controls" id="ebmControls">
+        <button class="start-button" id="trainEbmBtn">Train EBM</button>
+        <button class="start-button" id="initEbmSamplesBtn">Init EBM Samples</button>
+        <button class="start-button" id="sampleEbmBtn">Sample EBM</button>
+      </div>
+      <div class="panel-canvas">
+        <canvas id="ebmCanvas" width=256 height=256></canvas>
+      </div>
+    </div>
+  
+    <script>
+      let drawMode = 1.;
+      function setDrawMode(mode) {
+        drawMode = mode;
+      }
+
+      let brushSize = 0.01;
+      function setBrushSize(size) {
+        brushSize = Math.max(size, 0);
+      }
+
+      let brushLevel = 0.0001;
+      function setBrushLevel(level) {
+        brushLevel = level;
+      }
+
+      let brushHardness = 1;
+      function setBrushHardness(hardness) {
+        brushHardness = hardness;
+      }
+
+      function setupStartStopAnimButton(foo, btn, startMsg, stopMsg, delay) {
+          let running = false;
+          let animId;
+          let lastT;
+          function animate(t) {
+              if (!running) return;
+
+              if (!lastT) lastT = t;
+            
+              const elapsed = t - lastT;
+              animId = window.requestAnimationFrame(animate);
+              if (!delay || elapsed > delay) {
+                foo();
+                lastT = t;
+              }
+          }
+          btn.onclick = (e) => {
+              if (!running) {
+                  running = true;
+                  btn.className = "stop-button";
+                  btn.textContent = stopMsg;
+                  lastT = undefined;
+                  window.setTimeout(()=>{animId=window.requestAnimationFrame(animate)}, 17);
+              } else {
+                  cancelAnimationFrame(animId);
+                  running = false;
+                  btn.className = "start-button";
+                  btn.textContent = startMsg;
+              }
+              
+          }
+      }
+
+      Module.onRuntimeInitialized = () => {
+        console.log("WASM ready");
+        
+        let energyF32;
+        let pixels;
+        let canvasImg;
+
+        let ebmPixels;
+        let ebmImg;
+
+        /* === constants === */
+        const ENERGY_SIZE = Module.ccall('Get_ENERGY_SIZE', 'number', [], []);
+        
+
+        /* === exported C functions === */
+        const setupAppState = Module.cwrap('setup', 'number', []);
+
+        const getEnergyPtr = Module.cwrap('get_energy_ptr', 'number', ['number']);
+        const getPixelsPtr = Module.cwrap('get_pixels_ptr', 'number', ['number']);
+        const getEbmPixelsPtr = Module.cwrap('get_ebm_pixels_ptr', 'number', ['number']);
+
+        const renderPixels = Module.cwrap('render_pixels', 'void', ['number']);
+        const initEnergySamples = Module.cwrap('init_energy_samples', 'void', ['number']);
+        const sampleEnergy = Module.cwrap('sample_energy', 'void', ['number', 'number', 'number', 'number']);
+
+        const renderEbmPixels = Module.cwrap('render_ebm_pixels', 'void', ['number']);
+        const trainEbm = Module.cwrap('train_ebm', 'void', ['number', 'number', 'number']);
+        const initEbmSamples = Module.cwrap('init_ebm_samples', 'void', ['number']);
+        const sampleEbm = Module.cwrap('sample_ebm', 'void', ['number', 'number', 'number', 'number']);
+
+        
+        const appPtr = setupAppState();
+        if (appPtr === 0) throw new Error('out of memory');
+
+
+        function rebuildViews() {
+          const buf = Module.HEAPU8.buffer;
+
+          const energyPtr = getEnergyPtr(appPtr);
+          energyF32 = new Float32Array(buf, energyPtr, ENERGY_SIZE * ENERGY_SIZE);
+
+          const pixelsPtr = getPixelsPtr(appPtr);
+          pixels = new Uint8ClampedArray(buf, pixelsPtr, 4 * ENERGY_SIZE * ENERGY_SIZE);
+          canvasImg = new ImageData(pixels, ENERGY_SIZE, ENERGY_SIZE);
+
+          const ebmPixelsPtr = getEbmPixelsPtr(appPtr);
+          ebmPixels = new Uint8ClampedArray(buf, ebmPixelsPtr, 4 * ENERGY_SIZE * ENERGY_SIZE);
+          ebmImg = new ImageData(ebmPixels, ENERGY_SIZE, ENERGY_SIZE);
+        }
+        rebuildViews();
+
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = ENERGY_SIZE;
+        tempCanvas.height = ENERGY_SIZE;
+        const tempCtx = tempCanvas.getContext("2d");
+
+///--- BEGIN EBM ---///
+        const ebmCanvas = document.getElementById("ebmCanvas");
+        const ebmCtx = ebmCanvas.getContext("2d");
+        const ebmTrainBtn = document.getElementById("trainEbmBtn");
+        const ebmSampleBtn = document.getElementById("sampleEbmBtn");
+        const ebmInitSamplesBtn = document.getElementById("initEbmSamplesBtn");
+
+        function drawEbm() {
+          renderEbmPixels(appPtr);
+          tempCtx.putImageData(ebmImg, 0, 0);
+          ebmCtx.drawImage(
+            tempCanvas,
+            0, 0,            
+            ebmImg.width, 
+            ebmImg.height,
+            0, 0,            
+            ebmCanvas.width,    
+            ebmCanvas.height    
+          );
+        }
+
+        function runTrainEbm() {
+            const steps = 50;
+            const lr = 0.1;
+            trainEbm(appPtr, steps, lr);
+            drawEbm();
+        }
+        setupStartStopAnimButton(runTrainEbm, ebmTrainBtn, "Train", "Stop");
+
+
+        function runSampleEbm() {
+            const steps = 1;
+            const stepSize = 0.002;
+            const energyScale = 10.;
+            sampleEbm(appPtr, steps, stepSize, energyScale);
+            drawEbm();
+        }
+        setupStartStopAnimButton(runSampleEbm, ebmSampleBtn, "Start sampling", "Stop sampling");
+
+
+
+        ebmInitSamplesBtn.onclick = (e) => {
+            initEbmSamples(appPtr);
+            drawEbm();
+        }
+        
+///--- END EBM ---///
+
+        
+        
+///--- BEGIN ENERGY LANDSCAPE DRAWING ---///
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        const width = canvas.width;
+        const height = canvas.height;
+
+
+        let drawing = false;
+        let prevX, prevY;
+
+
+
+        function updateEnergy(x1, y1, x2, y2) {
+
+          // convert page coord to [0,1] canvas coord
+          const rect = canvas.getBoundingClientRect();
+          const rx = (x2 - rect.left) / width;
+          const ry = (y2 - rect.top) / height;
+
+          const yStart = Math.min(Math.max(Math.floor((ry - brushSize) * (ENERGY_SIZE)), 0), ENERGY_SIZE);
+          const yEnd = Math.min(Math.max(Math.floor((ry + brushSize) * (ENERGY_SIZE)), 0), ENERGY_SIZE-1);
+          const yMid = ry * ENERGY_SIZE;
+          const xMid = rx * ENERGY_SIZE;
+          const bRad = brushSize * ENERGY_SIZE;
+
+          const stepSize = 1 / ENERGY_SIZE;
+          const dy = 0;
+          for (let y = yStart; y < yEnd+1; y++) {
+            const yDist = (y/ENERGY_SIZE - ry)**2;
+            const xRad = Math.sqrt((brushSize) ** 2 - yDist);
+            const xStart = Math.min(Math.max(Math.round((rx - xRad) * (ENERGY_SIZE)), 0), ENERGY_SIZE);
+            const xEnd = Math.min(Math.max(Math.round((rx + xRad) * (ENERGY_SIZE)), 0), ENERGY_SIZE);
+            for (let x = xStart; x < xEnd; x++) {
+              const xDist = (x / ENERGY_SIZE - rx)**2;
+              const idx = y * ENERGY_SIZE + x;
+              const distFac = 1 - Math.min((Math.sqrt(xDist + yDist) / brushSize * brushHardness), 1);
+              const fac = distFac;
+              energy = brushLevel * fac + energyF32[idx] * (1 - fac);
+              energyF32[idx] = Math.min(Math.max(0, energy), 1);
+            }
+          }
+
+          drawEnergy();
+        }
+
+        function drawEnergy() {
+          renderPixels(appPtr);
+          tempCtx.putImageData(canvasImg, 0, 0);
+          ctx.drawImage(
+            tempCanvas,       
+            0, 0,            
+            canvasImg.width, 
+            canvasImg.height,
+            0, 0,            
+            canvas.width,    
+            canvas.height    
+          );
+        }
+
+
+        canvas.addEventListener('mousedown', (e)=>{
+          drawing = true;
+          prevX = e.clientX;
+          prevY = e.clientY;
+          updateEnergy(prevX, prevY, e.clientX, e.clientY);
+        });
+        canvas.addEventListener('mouseup', ()=>{
+          drawing = false;
+        });
+        canvas.addEventListener('mousemove', (e)=>{
+          if (drawing) {
+            let x = e.clientX;
+            let y = e.clientY; 
+            updateEnergy(prevX, prevY, e.clientX, e.clientY);
+            prevX = x;
+            prevY = y;
+          }
+        });
+///--- END ENERGY LANDSCAPE DRAWING ---///
+
+///--- OTHER ENERGY LANDSCAPE ---///
+        const sampleEnergyBtn = document.getElementById("sampleEnergyBtn");
+    
+        function runSampleEnergy() {
+            const steps = 1;
+            const stepSize = 0.002;
+            const energyScale = 10.;
+            sampleEnergy(appPtr, steps, stepSize, energyScale);
+            drawEnergy();
+        }
+        setupStartStopAnimButton(runSampleEnergy, sampleEnergyBtn, "Start sampling", "Stop sampling", 67);
+
+        const initEnergySamplesBtn = document.getElementById("initEnergySamplesBtn");
+
+        initEnergySamplesBtn.onclick = () => {
+          initEnergySamples(appPtr);  
+          drawEnergy();
+        };
+        
+///--- END OTHER ENERGY LANDSCAPE  ---///
+
+        
+      };
+    </script>
+  </body>
+</html>
+
